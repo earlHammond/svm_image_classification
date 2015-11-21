@@ -8,9 +8,26 @@ import Preprocessing
 import Clustering
 import Models
 import FileUtils
+import Kernels
+
+NP_SAVE_LOCATION = "data"
+CLUSTER_CENTER_NAME = "cluster-centers"
+LABELED_PREDICTORS = "labeled-predictors"
+LABELED_RESPONSE = "labeled-response"
+UNLABELED_PREDICTORS = "unlabeled-predictors"
+UNLABELED_RESPONSE = "unlabeled-response"
 
 
-def main(k, sort_data, run_image_crop, extract_all_features, train_model, classify_images):
+def main(run_name="test",
+         k=50,
+         sort_data=True,
+         run_image_crop=True,
+         extract_all_features=True,
+         create_labeled_images=True,
+         create_unlabeled_images=True,
+         train_model=True,
+         predict_model=True):
+
     all_image_path = sys.argv[1]
     training_csv_path = sys.argv[2]
     output_path = sys.argv[3]
@@ -35,35 +52,67 @@ def main(k, sort_data, run_image_crop, extract_all_features, train_model, classi
                             training_images_cropped_path, test_images_cropped_path)
 
     if extract_all_features:
+        if create_labeled_images and not create_unlabeled_images:
+            images = get_images(training_images_cropped_path)
+        else:
+            images = all_images_cropped
+
         print "Extracting features"
-        all_features = extract_image_features(all_images_cropped)[1]
+        all_features = extract_image_features(images)[1]
         cluster_centers = Clustering.cluster_key_points(all_features, k)
-        np.save("cluster_centers", cluster_centers)
-    else:
-        cluster_centers = np.load("cluster_centers")
+        save_np_file(cluster_centers, CLUSTER_CENTER_NAME, run_name)
+
+    if create_labeled_images:
+        cluster_centers = load_np_file(CLUSTER_CENTER_NAME, run_name)
+        labeled_images = get_images(training_images_cropped_path)
+        labeled_features = extract_image_features(labeled_images)[1]
+        labeled_X, labeled_y = Clustering.build_histograms_from_features(k, cluster_centers, labeled_features, all_images_cropped_path)
+        save_np_file(labeled_X, LABELED_PREDICTORS, run_name)
+        save_np_file(labeled_y, LABELED_RESPONSE, run_name)
+
+    if create_unlabeled_images:
+        cluster_centers = load_np_file(CLUSTER_CENTER_NAME, run_name)
+        unlabeled_images = get_images(test_images_cropped_path)
+        unlabeled_features = extract_image_features(unlabeled_images)[1]
+        unlabled_X, unlabled_y = Clustering.build_histograms_from_features(k, cluster_centers, unlabeled_features)
+        save_np_file(unlabled_X, UNLABELED_PREDICTORS, run_name)
+        save_np_file(unlabled_y, UNLABELED_RESPONSE, run_name)
 
     if train_model:
-        labeled_images = get_images(training_images_cropped_path)
-        labeled_X, labeled_y = Clustering.build_histograms_from_features(k, cluster_centers, labeled_images)
-        np.save("labeled_histograms", labeled_X)
-        np.save("labeled_response", labeled_y)
-    else:
-        labeled_X = np.load("labeled_histograms")
-        labled_y = np.load("labeled_response")
+        labeled_X = load_np_file(LABELED_PREDICTORS, run_name)
+        labeled_y = load_np_file(LABELED_RESPONSE, run_name)
+        kernels = ['poly', 'rbf', 'sigmoid', Kernels.laplacian_kernel]
+        penalties = [0.1, 1, 100, 1000, 10000]
 
-    if classify_images:
-        unlabeled_images = get_images(test_images_cropped_path)
-        unlabled_X, unlabled_y = Clustering.build_histograms_from_features(k, cluster_centers, unlabeled_images)
-        np.save("unlabeled_histograms", unlabled_X)
-        np.save("unlabeled_response", unlabled_y)
-    else:
-        unlabled_X = np.load("test_histograms")
-        unlabled_y = np.load("test_response")
+        scores = {}
+        for kernel in kernels:
+            for penalty in penalties:
+                score = Models.train_svm(labeled_X, labeled_y, kernel, penalty)
+                scores[(kernel, penalty)] = score
+
+        for run in scores:
+            print run, scores[run]
+
+    if predict_model:
+        unlabled_X = load_np_file(UNLABELED_PREDICTORS, run_name)
+        unlabled_y = load_np_file(UNLABELED_RESPONSE, run_name)
 
 
+def save_np_file(data, file_name, run_name):
+    file_path = os.path.join(NP_SAVE_LOCATION, "%s_%s" % (file_name, run_name))
+
+    if not os.path.exists(NP_SAVE_LOCATION):
+        os.makedirs(NP_SAVE_LOCATION)
+
+    with open(file_path, 'wb') as out_file:
+        np.save(out_file, data)
 
 
-    svm = Models.train_svm(training_X, training_y, 'rbf', 1.0, 0.0)
+def load_np_file(file_name, run_name):
+    file_path = os.path.join(NP_SAVE_LOCATION, "%s_%s" % (file_name, run_name))
+
+    with open(file_path, 'rb') as in_file:
+        return np.load(in_file)
 
 
 def get_images(image_folder):
@@ -97,13 +146,23 @@ def extract_image_features(image_list):
     key_points = {}
     features = {}
     for image in image_list:
-        print "Extracting SIFT for image %s" % image
+        print "Extracting SURF for image %s" % image
         kp, des = ImageProcessing.run_surf(image)
-        key_points[image] = kp
-        features[image] = np.asarray(des)
+
+        if kp is not None and des is not None:
+            key_points[image] = kp
+            features[image] = np.asarray(des)
 
     return key_points, features
 
 
 if __name__ == "__main__":
-    main(50, False, False)
+    main(run_name="test",
+         k=50,
+         sort_data=True,
+         run_image_crop=True,
+         extract_all_features=True,
+         create_labeled_images=True,
+         create_unlabeled_images=False,
+         train_model=True,
+         predict_model=False)

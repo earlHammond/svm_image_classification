@@ -1,4 +1,3 @@
-
 import os
 import csv
 import shutil
@@ -16,10 +15,10 @@ def read_training_file(path):
 
 def sort_training_images(training_lookup, all_image_path, training_path, test_path):
     for file_name in os.listdir(all_image_path):
-        source_path = os.path.join(all_image_path,file_name)
+        source_path = os.path.join(all_image_path, file_name)
 
         if file_name in training_lookup:
-            target_folder = FileUtils.make_dir(os.path.join(training_path, training_lookup[file_name]), overwrite=True)
+            target_folder = FileUtils.make_dir(os.path.join(training_path, training_lookup[file_name]))
             target_path = os.path.join(target_folder, file_name)
         else:
             target_path = os.path.join(test_path, file_name)
