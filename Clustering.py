@@ -1,6 +1,7 @@
 import os
 import math
 import numpy as np
+import cv2
 
 import ImageProcessing
 
@@ -42,53 +43,52 @@ def build_histograms_from_features(surf_function, k, cluster_centers, descriptor
         print "Building Histogram for %s" % image_path
         image_id = os.path.split(os.path.dirname(image_path))[1]
 
-        img = cv2.imread(img_path, cv2.CV_LOAD_IMAGE_GRAYSCALE)
-        sections = ImageProcessing.divide_image(image_path)
-        kp, des = surf_function(image_path)
+        img = cv2.imread(image_path, cv2.CV_LOAD_IMAGE_GRAYSCALE)
+        sections = ImageProcessing.divide_image(img, gray=True)
+        histograms = []
+        for section in sections:
+            kp, des = surf_function(section)
+            surf_value = 400
+            attempts = 0
+            completed = False
 
-        
-        surf_value = 400
-        attempts = 0
-        completed = False
+            while attempts < 20 and not completed:
+                try:
+                    descriptors = np.vstack(des)
+                    km.fit(descriptors)
+                    completed = True
+                except:
+                    print "Re-running %s with SURF value set to: %i" % (image_path, surf_value)
+                    surf_value *= 0.80
+                    attempts += 1
+                    des = surf_function(image_path, surf_value)[1]
 
-        while attempts < 20 and not completed:
-            try:
-                descriptors = np.vstack(des)
-                km.fit(descriptors)
-                completed = True
-            except:
-                print "Re-running %s with SURF value set to: %i" % (image_path, surf_value)
-                surf_value *= 0.80
-                attempts += 1
-                des = surf_function(image_path, surf_value)[1]
+            if completed:
+                histogram = build_histogram(km.labels_, k)
+                histograms.append(histogram)
+            else:
+                print "Could not extract enough features from image %s for processing" % image_path
+                break
 
-            if attempts == 10 and original_path:
-                new_image_path = os.path.join(original_path, os.path.split(image_path)[1])
-                print "Could not extract enough features from cropped images, switching to original image %s" % new_image_path
-                image_path = new_image_path
-                surf_value = 500
-
-                des = np.asarray(surf_function(image_path, surf_value)[1])
-
-        if completed:
-            histogram = build_histogram(km.labels_)
-
-            X.append(histogram)
+        if len(histograms) == 4:
+            X.append(histograms)
             y.append(image_id)
-        else:
-            print "Could not extract enough features from image %s for processing" % image_path
 
     return X, y
 
 
-def build_histogram(data):
-    histograms = {}
+def build_histogram(data, k):
+    histograms = get_base_histogram(k)
     for element in data:
-        if element not in histograms:
-            histograms[element] = 1
-        else:
-            histograms[element] += 1
+        histograms[element] += 1
     return histograms
+
+
+def get_base_histogram(k):
+    histogram = {}
+    for x in xrange(0,k):
+        histogram[x] = 0
+    return histogram
 
 
 def build_cluster_histograms(db):

@@ -95,8 +95,12 @@ def get_color_histogram(image):
     return cv2.calcHist( [image], [0, 1], None, [180, 256], [0, 180, 0, 256] )
 
 
-def divide_image(image):
-    height, width, channels = image.shape
+def divide_image(image, gray=False):
+    if not gray:
+        height, width, channels = image.shape
+    else:
+        height, width = image.shape
+
     section1 = image[0:height / 2, 0:width / 2]
     section2 = image[0:height / 2, width / 2:width]
     section3 = image[height / 2:height, 0:width / 2]

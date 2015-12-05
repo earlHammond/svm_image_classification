@@ -1,15 +1,16 @@
 
 import random
-
+import numpy as np
 
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction import DictVectorizer
+from sklearn.multiclass import OneVsRestClassifier
 
 
 def train_svm(X, y, kernel, C, kfold):
     X = vectorize_features(X)
-    svc = SVC(kernel=kernel, C=C, probability=True)
+    svc = OneVsRestClassifier(SVC(kernel=kernel, C=C, probability=True))
 
     scores = []
     for train, test in kfold:
@@ -21,11 +22,11 @@ def train_svm(X, y, kernel, C, kfold):
 
 def train_forest(X, y, k, kfold):
     X = vectorize_features(X)
-    clf = RandomForestClassifier(n_estimators=k)
+    clf = OneVsRestClassifier(RandomForestClassifier(n_estimators=k))
 
     scores = []
     for train, test in kfold:
-        score = clf.fit(X[train].todense(), y[train]).score(X[test].todense(), y[test])
+        score = clf.fit(X[train], y[train]).score(X[test], y[test])
         scores.append(score)
 
     return scores
@@ -33,6 +34,11 @@ def train_forest(X, y, k, kfold):
 
 def vectorize_features(X):
     vectorizer = DictVectorizer()
+    holder = []
+    for x in X:
+        holder.append(vectorizer.fit_transform(x).todense())
+    return np.vstack(holder)
+
     return vectorizer.fit_transform(X)
 
 

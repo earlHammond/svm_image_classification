@@ -29,8 +29,6 @@ def main(run_name="test",
          sort_data=True,
          run_image_crop=True,
          extract_features=True,
-         extraction_sample_size=0.25,
-         extract_all_features=True,
          create_labeled_images=True,
          train_model=True,
          predict_model=True):
@@ -73,15 +71,9 @@ def main(run_name="test",
         else:
             images = all_images_cropped
 
-        if extract_all_features:
-            feature_stream = extract_image_features_stream(surf, images)
-            cluster_centers = Clustering.cluster_key_points_from_stream(feature_stream, k)
-            save_np_file(cluster_centers, CLUSTER_CENTER_NAME, run_name)
-        else:
-            images = sample_images(images, extraction_sample_size)
-            features = extract_image_features(surf, images)[1]
-            cluster_centers = Clustering.cluster_key_points(features, k)
-            save_np_file(cluster_centers, CLUSTER_CENTER_NAME, run_name)
+        feature_stream = extract_image_features_stream(surf, images)
+        cluster_centers = Clustering.cluster_key_points_from_stream(feature_stream, k)
+        save_np_file(cluster_centers, CLUSTER_CENTER_NAME, run_name)
 
     if create_labeled_images:
         print "Build histograms for all images"
@@ -210,9 +202,7 @@ if __name__ == "__main__":
          surf_function='dense',
          sort_data=False,
          run_image_crop=False,
-         extract_features=True,
-         extraction_sample_size=0.25,
-         extract_all_features=True,
-         create_labeled_images=True,
+         extract_features=False,
+         create_labeled_images=False,
          train_model=True,
          predict_model=False)
