@@ -14,6 +14,7 @@ import FileUtils
 import Kernels
 
 from sklearn.cross_validation import KFold
+from sklearn.cross_validation import StratifiedKFold
 
 NP_SAVE_LOCATION = "data"
 CLUSTER_CENTER_NAME = "cluster-centers"
@@ -30,8 +31,7 @@ def main(run_name="test",
          run_image_crop=True,
          extract_features=True,
          create_labeled_images=True,
-         train_model=True,
-         predict_model=True):
+         train_model=True):
 
     if surf_function == 'dense':
         surf = ImageProcessing.run_dense_surf
@@ -90,15 +90,20 @@ def main(run_name="test",
         penalties = [0.1, 1, 100, 1000, 10000]
 
         scores = {}
-        # kfold = Models.custom_k_folds(labeled_y, n_folds=3, min_response=1)
         kfold = KFold(len(labeled_y), n_folds=5)
-        print "Training SVM Model"
-        clf_score = Models.train_forest(labeled_X, labeled_y, k, kfold)
+        # kfold = StratifiedKFold(labeled_y, n_folds=5)
+        print "Training Random Forest Model"
+        clf_score = Models.train_forest(labeled_X, labeled_y, k, kfold, Models.merge_and_vectorize_features)
         print clf_score
+
+        print "Training Boost Model"
+        clf_score = Models.train_gradient_boosting_classifier(labeled_X, labeled_y, k, kfold, Models.merge_and_vectorize_features)
+        print clf_score
+
         print "Training SVM Model"
         for kernel in kernels:
             for penalty in penalties:
-                score = Models.train_svm(labeled_X, labeled_y, kernel, penalty, kfold)
+                score = Models.train_svm(labeled_X, labeled_y, kernel, penalty, kfold, Models.merge_and_vectorize_features)
                 scores[(kernel, penalty)] = score
 
         for run in scores:
@@ -106,10 +111,6 @@ def main(run_name="test",
 
         data_frame = pd.DataFrame(scores.items())
         data_frame.to_pickle("data/output_%s" % run_name)
-
-    if predict_model:
-        unlabled_X = load_np_file(UNLABELED_PREDICTORS, run_name)
-        unlabled_y = load_np_file(UNLABELED_RESPONSE, run_name)
 
 
 def save_np_file(data, file_name, run_name):
@@ -204,5 +205,4 @@ if __name__ == "__main__":
          run_image_crop=False,
          extract_features=False,
          create_labeled_images=False,
-         train_model=True,
-         predict_model=False)
+         train_model=True)
