@@ -24,3 +24,4 @@ def sort_training_images(training_lookup, all_image_path, training_path, test_pa
             target_path = os.path.join(test_path, file_name)
 
         shutil.copy(source_path, target_path)
+

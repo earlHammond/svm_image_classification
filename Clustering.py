@@ -9,54 +9,72 @@ from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 
 
-def cluster_key_points(descriptors, k):
+def cluster_key_points_from_stream(image_data, k):
     print "Clustering Image Features to %s clusters" % k
-    km = MiniBatchKMeans(init='k-means++', n_clusters=k, max_iter=25, batch_size=20)
-    descriptors = np.vstack(descriptors.values())
-    km.fit(descriptors)
+    km = MiniBatchKMeans(init='k-means++', n_clusters=k, max_iter=50, batch_size=20)
+    descriptors = []
+    for index, data in enumerate(image_data):
+        descriptors.append(data[1])
+
+        if index % 100:
+            descriptors = np.vstack(descriptors)
+            km.partial_fit(descriptors)
+            descriptors = []
+
     return km.cluster_centers_
 
 
-def build_histograms_from_features(k, cluster_centers, descriptors_lookup, original_path=None):
+def cluster_key_points(descriptors, k):
+    print "Clustering Image Features to %s clusters" % k
+    km = KMeans(init='k-means++', n_clusters=k, max_iter=100)
+    descriptors = np.vstack(descriptors.values())
+    km.fit(descriptors)
+
+    return km.cluster_centers_
+
+
+def build_histograms_from_features(surf_function, k, cluster_centers, descriptors_lookup, original_path=None):
     km = KMeans(n_clusters=k, max_iter=100, init=cluster_centers, n_init=1)
 
     X = []
     y = []
     for image_path in descriptors_lookup:
         print "Building Histogram for %s" % image_path
-        whale_id = os.path.split(os.path.dirname(image_path))[1]
+        image_id = os.path.split(os.path.dirname(image_path))[1]
 
-        surf_value = 500
+        img = cv2.imread(img_path, cv2.CV_LOAD_IMAGE_GRAYSCALE)
+        sections = ImageProcessing.divide_image(image_path)
+        kp, des = surf_function(image_path)
+
+        
+        surf_value = 400
         attempts = 0
         completed = False
 
         while attempts < 20 and not completed:
             try:
-                descriptors = np.vstack(descriptors_lookup[image_path])
+                descriptors = np.vstack(des)
                 km.fit(descriptors)
                 completed = True
-            except ValueError:
+            except:
                 print "Re-running %s with SURF value set to: %i" % (image_path, surf_value)
-                new_descriptors = ImageProcessing.run_surf(image_path, surf_value)[1]
-                descriptors_lookup[image_path] = new_descriptors
                 surf_value *= 0.80
                 attempts += 1
+                des = surf_function(image_path, surf_value)[1]
 
             if attempts == 10 and original_path:
                 new_image_path = os.path.join(original_path, os.path.split(image_path)[1])
                 print "Could not extract enough features from cropped images, switching to original image %s" % new_image_path
-                descriptors_lookup[new_image_path] = descriptors_lookup.pop(image_path)
                 image_path = new_image_path
                 surf_value = 500
 
-                new_descriptors = np.asarray(ImageProcessing.run_surf(image_path, surf_value)[1])
-                descriptors_lookup[image_path] = new_descriptors
+                des = np.asarray(surf_function(image_path, surf_value)[1])
 
         if completed:
             histogram = build_histogram(km.labels_)
 
             X.append(histogram)
-            y.append(whale_id)
+            y.append(image_id)
         else:
             print "Could not extract enough features from image %s for processing" % image_path
 
