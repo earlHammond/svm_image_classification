@@ -34,3 +34,5 @@ image_with_keys = cv2.drawKeypoints(img, kps, None, (255, 0, 0), 4)
 plt.imshow(image_with_keys)
 plt.show()
 ImageProcessing.crop_image(img_path, out_path, kps, 50)
+
+

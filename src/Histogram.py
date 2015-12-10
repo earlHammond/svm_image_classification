@@ -17,6 +17,9 @@ def build_image_histograms(surf_spread, k, cluster_centers, descriptors_lookup):
         img = ImageProcessing.load_image(image_path)
         sections = ImageProcessing.divide_image(img)
 
+        if surf_spread == 'sparse':
+            sections = [image_path]
+
         histograms = []
         for section in sections:
             kp, des = ImageProcessing.run_surf(section, surf_spread)
@@ -24,7 +27,7 @@ def build_image_histograms(surf_spread, k, cluster_centers, descriptors_lookup):
             attempts = 0
             completed = False
 
-            while attempts < 20 and not completed:
+            while attempts < 10 and not completed:
                 try:
                     descriptors = np.vstack(des)
                     km.fit(descriptors)
@@ -33,16 +36,17 @@ def build_image_histograms(surf_spread, k, cluster_centers, descriptors_lookup):
                     print "Re-running %s with SURF value set to: %i" % (image_path, surf_value)
                     surf_value *= 0.80
                     attempts += 1
-                    des = ImageProcessing.run_surf(section, surf_spread)(image_path, surf_value)[1]
+                    des = ImageProcessing.run_surf(section, surf_spread)[1]
 
             if completed:
                 histogram = build_histogram(km.labels_, k)
                 histograms.append(histogram)
             else:
                 print "Could not extract enough features from image %s for processing" % image_path
-                break
+                histogram = build_histogram([], k)
+                histograms.append(histogram)
 
-        if len(histograms) == 4:
+        if len(histograms) == 4 or (surf_spread == 'sparse' and len(histograms) == 1):
             X.append(histograms)
             y.append(image_id)
 
@@ -58,6 +62,6 @@ def build_histogram(data, k):
 
 def get_base_histogram(k):
     histogram = {}
-    for x in xrange(0,k):
+    for x in xrange(0, k):
         histogram[x] = 0
     return histogram

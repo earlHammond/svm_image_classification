@@ -1,4 +1,5 @@
 import numpy as np
+import gc
 
 from sklearn.cluster import MiniBatchKMeans, KMeans
 
@@ -8,7 +9,7 @@ def get_kmeans_cluster(k, cluster_centers):
 
 
 def get_mini_batch_cluster(k):
-    return MiniBatchKMeans(init='k-means++', n_clusters=k, max_iter=100, batch_size=50)
+    return MiniBatchKMeans(init='k-means++', n_clusters=k, max_iter=10, batch_size=10)
 
 
 def cluster_key_points_from_stream(image_data, k):
@@ -16,12 +17,17 @@ def cluster_key_points_from_stream(image_data, k):
     km = get_mini_batch_cluster(k)
 
     descriptors = []
-    for index, data in enumerate(image_data):
-        descriptors.append(data[1])
+    for index, (kp, des) in enumerate(image_data):
+        descriptors.append(des)
 
-        if index % 100:
+        if index % 10 == 0:
             descriptors = np.vstack(descriptors)
             km.partial_fit(descriptors)
             descriptors = []
+            gc.collect()
+
+    if descriptors:
+        descriptors = np.vstack(descriptors)
+        km.partial_fit(descriptors)
 
     return km.cluster_centers_

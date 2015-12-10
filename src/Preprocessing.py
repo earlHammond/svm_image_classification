@@ -2,7 +2,7 @@ import os
 import csv
 import shutil
 
-from src import FileUtils
+import FileUtils
 
 
 def read_training_file(path):

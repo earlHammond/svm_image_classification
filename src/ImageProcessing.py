@@ -1,6 +1,8 @@
 import os
 
 import cv2
+import cPickle
+import gzip
 import numpy as np
 
 
@@ -27,24 +29,44 @@ def detect_compute_surf(img, surf, spread):
     return kp, des
 
 
-def run_surf(image_path, spread='dense', value=400):
+def run_surf(image_path, spread='dense', value=400, k=None):
     img = load_image(image_path)
+    data_path = "%s_%s%s" % (image_path, spread, ".data.pickle")
 
-    des = None
-    kp = None
+    des = []
+    kp = []
     attempts = 0
-    while des is None:
+
+    if type(image_path) == str and os.path.exists(data_path):
+        return load_image_data(data_path)
+
+    while attempts < 10:
         surf = cv2.SURF(value)
         kp, des = detect_compute_surf(img, surf, spread)
 
-        if kp is not None and des is not None:
+        if kp is not None and des is not None and len(des) > k:
             break
 
         value *= 0.9
         print "SURF detected no features for %s re-running at %f" % (image_path, value)
         attempts += 1
 
+    if type(image_path) == str:
+        save_image_data(des, data_path)
     return kp, des
+
+
+def save_image_data(des, path):
+    with gzip.open(path, 'wb') as f:
+        cPickle.dump(des, f)
+
+
+def load_image_data(path):
+    with gzip.open(path, 'rb') as f:
+        kp = []
+        des = cPickle.load(f)
+
+        return kp, des
 
 
 def crop_by_color_histogram(image, output_path):
@@ -67,7 +89,7 @@ def crop_by_color_histogram(image, output_path):
 
 
 def get_color_histogram(image):
-    return cv2.calcHist( [image], [0, 1], None, [180, 256], [0, 180, 0, 256] )
+    return cv2.calcHist([image], [0, 1], None, [180, 256], [0, 180, 0, 256])
 
 
 def mask_image(image, hist):
@@ -131,4 +153,3 @@ def divide_image(image):
 def crop_image_from_region(image, region):
     x, y, w, h = cv2.boundingRect(region)
     return image[y: y + h, x: x + w]
-

@@ -5,6 +5,13 @@ import Histogram
 from sklearn.feature_extraction import DictVectorizer
 
 
+def determine_vectorization_strategy(vectorization_type):
+    if vectorization_type == 'spatial_histogram':
+        return vectorize_multi_histograms
+    elif vectorization_type == 'bag_of_words':
+        return merge_and_vectorize_features
+
+
 def merge_and_vectorize_features(X):
     vectorizer = DictVectorizer()
     X = merge_histograms(X)

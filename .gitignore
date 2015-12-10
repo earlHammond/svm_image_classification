@@ -107,4 +107,8 @@ docs/_build/
 target/
 
 npy
-data
+data*
+
+*.zip
+
+.*
