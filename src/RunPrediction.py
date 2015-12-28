@@ -13,7 +13,6 @@ import Models
 import Histogram
 import FileUtils
 import CrossValidation
-import Kernels
 import Vectorization
 
 from collections import OrderedDict
@@ -96,17 +95,10 @@ def main(run_name="test",
         boost_score.append(np.mean(boost_score))
         scores["Gradient Boosting"] = boost_score
 
-        print "Training SVM Model"
-        kernels = ['poly', 'rbf', 'sigmoid', Kernels.laplacian_kernel]
-        penalties = [0.01, 1, 100, 1000, 10000]
-        for kernel in kernels:
-            for penalty in penalties:
-                score = Models.train_svm(labeled_X, labeled_y, kernel, penalty, kfold, vectorization_strategy)
-                score.append(np.mean(score))
-                scores["%s_%s_%i" % ('SVM', str(kernel), penalty)] = score
+        scores = Models.train_svm(labeled_X, labeled_y, kfold, vectorization_strategy, scores)
 
-        for run in scores:
-            print run, scores[run]
+        for score in scores:
+            print score, scores[score]
 
         data_frame = pd.DataFrame(scores.items())
         data_frame.to_pickle("data/output_%s" % run_name)
@@ -130,7 +122,6 @@ def load_np_file(file_name, run_name):
 
 
 def sort_training_files(training_csv_path, all_image_path, sorted_folder):
-    print all_image_path
     training_lookup = Preprocessing.read_training_file(training_csv_path)
     Preprocessing.sort_training_images(training_lookup, all_image_path, sorted_folder)
 
@@ -150,8 +141,6 @@ def extract_image_features_stream(spread, image_list, k=None):
             yield kp, des
 
 
-
-
 def run_parallel(run):
     main(run_name=run[0],
          k=run[1],
@@ -166,40 +155,33 @@ def run_parallel(run):
 
 
 if __name__ == "__main__":
-    # runs = [
-    #         ["cal_25_dense", 25, 'dense', 'bag_of_words'],
-    #         ["cal_50_dense", 50, 'dense', 'bag_of_words'],
-    #         ["cal_100_dense", 100, 'dense', 'bag_of_words'],
-    #         ["cal_150_dense", 150, 'dense', 'bag_of_words'],
-    #         ["cal_25_sparse", 25, 'sparse', 'bag_of_words'],
-    #         ["cal_50_sparse", 50, 'sparse', 'bag_of_words'],
-    #         ["cal_100_sparse", 50, 'sparse', 'bag_of_words'],
-    #         ["cal_50_dense_sh", 50, 'dense', 'spatial_histogram'],
-    #         ["cal_100_dense_sh", 100, 'dense', 'spatial_histogram'],
-    #         ["cal_50_sparse_sh", 50, 'sparse', 'spatial_histogram'],
-    #         ["cal_100_sparse_sh", 100, 'sparse', 'spatial_histogram'],
-    # ]
-
-    runs = [
-            ["whale_25_dense", 25, 'dense', 'bag_of_words'],
-            ["whale_50_dense", 50, 'dense', 'bag_of_words'],
-            ["whale_100_dense", 100, 'dense', 'bag_of_words'],
-            ["whale_25_sparse", 25, 'sparse', 'bag_of_words'],
-            ["whale_50_sparse", 50, 'sparse', 'bag_of_words'],
-            ["whale_100_sparse", 100, 'sparse', 'bag_of_words'],
-            ["whale_50_dense_sh", 50, 'dense', 'spatial_histogram'],
-            ["whale_50_sparse_sh", 50, 'sparse', 'spatial_histogram']
+    cal_runs = [
+        ["cal_25_dense", 25, 'dense', 'bag_of_words'],
+        ["cal_50_dense", 50, 'dense', 'bag_of_words'],
+        ["cal_100_dense", 100, 'dense', 'bag_of_words'],
+        ["cal_150_dense", 150, 'dense', 'bag_of_words'],
+        ["cal_25_sparse", 25, 'sparse', 'bag_of_words'],
+        ["cal_50_sparse", 50, 'sparse', 'bag_of_words'],
+        ["cal_100_sparse", 50, 'sparse', 'bag_of_words'],
+        ["cal_50_dense_sh", 50, 'dense', 'spatial_histogram'],
+        ["cal_100_dense_sh", 100, 'dense', 'spatial_histogram'],
+        ["cal_50_sparse_sh", 50, 'sparse', 'spatial_histogram'],
+        ["cal_100_sparse_sh", 100, 'sparse', 'spatial_histogram']
     ]
 
-    pool = mp.Pool(4)
+    # whale_runs = [
+    #     ["whale_25_dense", 25, 'dense', 'bag_of_words'],
+    #     ["whale_50_dense", 50, 'dense', 'bag_of_words'],
+    #     ["whale_100_dense", 100, 'dense', 'bag_of_words'],
+    #     ["whale_25_sparse", 25, 'sparse', 'bag_of_words'],
+    #     ["whale_50_sparse", 50, 'sparse', 'bag_of_words'],
+    #     ["whale_100_sparse", 100, 'sparse', 'bag_of_words'],
+    #     ["whale_50_dense_sh", 50, 'dense', 'spatial_histogram'],
+    #     ["whale_50_sparse_sh", 50, 'sparse', 'spatial_histogram']
+    # ]
 
-    # Single Core
-    # for run in runs:
-    #     run_parallel(run)
-
-    # Multiple Core
     pool = mp.Pool(4)
-    pool.map(run_parallel, runs)
+    pool.map(run_parallel, cal_runs)
     pool.close()
     pool.join()
 
